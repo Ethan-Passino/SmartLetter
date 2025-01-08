@@ -1,11 +1,15 @@
-from tkinter import Tk, Label, Entry, Text, Button, messagebox, Toplevel
-from tkinter.ttk import Progressbar
-import threading  # To handle API call without freezing the GUI
+from tkinter import Tk, Label, Entry, Text, Button, messagebox, Toplevel, filedialog, StringVar, OptionMenu
+from tkinter.filedialog import askopenfilename, asksaveasfilename
+import threading
 from ai_generator import generate_cover_letter
+import PyPDF2
+
+# Global variable to store the uploaded resume text
+resume_text = ""
 
 def show_output(cover_letter):
     """
-    Display the generated cover letter in a new window.
+    Display the generated cover letter in a new window with options to save and analyze.
     """
     output_window = Toplevel(root)
     output_window.title("Generated Cover Letter")
@@ -16,15 +20,38 @@ def show_output(cover_letter):
     output_text.config(state="disabled")  # Make the text read-only
     output_text.pack(expand=True, fill="both")
 
+    # Character and word count
+    char_count = len(cover_letter)
+    word_count = len(cover_letter.split())
+    stats_label = Label(output_window, text=f"Characters: {char_count} | Words: {word_count}")
+    stats_label.pack()
+
+    # Add a "Save" button
+    def save_to_file():
+        file_path = asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
+        )
+        if file_path:
+            with open(file_path, "w") as file:
+                file.write(cover_letter)
+            messagebox.showinfo("Success", "Cover letter saved successfully!")
+
+    save_button = Button(output_window, text="Save Cover Letter", command=save_to_file)
+    save_button.pack()
+
     # Add a "Go Back" button
     back_button = Button(output_window, text="Go Back", command=output_window.destroy)
     back_button.pack()
+
 
 def handle_generate():
     """
     Handle the generation process by validating inputs, showing a loading indicator,
     and starting the API call in a separate thread.
     """
+    global resume_text  # Access the global resume text
+
     inputs = {
         "name": name_entry.get(),
         "contact_info": contact_entry.get(),
@@ -32,6 +59,8 @@ def handle_generate():
         "job_description": job_text.get("1.0", "end-1c").strip(),
         "company_info": company_info_text.get("1.0", "end-1c").strip(),
         "projects": projects_text.get("1.0", "end-1c").strip(),
+        "resume": resume_text.strip(),  # Include the uploaded resume text as its own input
+        "tone": tone_var.get(),
     }
 
     # Validate inputs
@@ -45,6 +74,7 @@ def handle_generate():
 
     # Start the API call in a new thread to prevent freezing the GUI
     threading.Thread(target=generate_and_show, args=(inputs,)).start()
+
 
 def generate_and_show(inputs):
     """
@@ -61,6 +91,34 @@ def generate_and_show(inputs):
         # Hide the loading label and show an error message
         loading_label.pack_forget()
         messagebox.showerror("Error", f"Failed to generate cover letter: {e}")
+
+
+def upload_resume():
+    """
+    Allow the user to upload a resume and extract text to save as a separate input.
+    """
+    global resume_text  # Access the global resume text variable
+
+    file_path = askopenfilename(filetypes=[("PDF Files", "*.pdf"), ("Text Files", "*.txt"), ("All Files", "*.*")])
+    if file_path:
+        if file_path.endswith(".pdf"):
+            try:
+                with open(file_path, "rb") as pdf_file:
+                    pdf_reader = PyPDF2.PdfReader(pdf_file)
+                    resume_text = " ".join(page.extract_text() for page in pdf_reader.pages)
+                    messagebox.showinfo("Success", "Resume uploaded successfully!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to extract text from PDF: {e}")
+        elif file_path.endswith(".txt"):
+            try:
+                with open(file_path, "r") as txt_file:
+                    resume_text = txt_file.read()
+                    messagebox.showinfo("Success", "Resume uploaded successfully!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to extract text from file: {e}")
+        else:
+            messagebox.showerror("Error", "Unsupported file type!")
+
 
 # Create the main GUI window
 root = Tk()
@@ -90,6 +148,16 @@ company_info_text.pack()
 Label(root, text="Projects and Skills:").pack()
 projects_text = Text(root, height=5, width=50)
 projects_text.pack()
+
+# Tone selection
+Label(root, text="Select Tone:").pack()
+tone_var = StringVar(value="Formal")
+tone_dropdown = OptionMenu(root, tone_var, "Formal", "Casual", "Creative")
+tone_dropdown.pack()
+
+# Upload Resume Button
+upload_button = Button(root, text="Upload Resume", command=upload_resume)
+upload_button.pack()
 
 # Loading label (hidden initially)
 loading_label = Label(root, text="", fg="blue")

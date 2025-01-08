@@ -23,18 +23,21 @@ def generate_cover_letter(inputs):
     Returns:
         str: The generated cover letter.
     """
+    # Merge "projects" and "resume" details for a comprehensive skillset
+    combined_projects_and_skills = f"{inputs['projects']}\n\nAdditional details from resume:\n{inputs['resume']}"
+
     # Construct the prompt
     prompt = (
-        f"Write a professional cover letter for {inputs['name']} applying to the position described as:\n"
+        f"Write a {inputs['tone'].lower()} professional cover letter for {inputs['name']} applying to the position described as:\n"
         f"'{inputs['job_description']}'\nat {inputs['company']}. Include the following company details:\n{inputs['company_info']}.\n"
-        f"Highlight the applicant's projects and skills:\n{inputs['projects']}.\n"
+        f"Highlight the applicant's projects, skills, and relevant experience:\n{combined_projects_and_skills}.\n"
         f"Format the letter professionally and include the contact information: {inputs['contact_info']}."
     )
 
     try:
         # Call OpenAI's ChatCompletion API with streaming
         stream = client.chat.completions.create(
-            model="gpt-4o-mini",  # Update to the correct model name
+            model="gpt-3.5-turbo",  # Update to the correct model name
             messages=[
                 {"role": "system",
                  "content": "You are a professional AI assistant specializing in generating cover letters."},
