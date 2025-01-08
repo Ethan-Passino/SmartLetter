@@ -78,18 +78,31 @@ def handle_generate():
 
 def generate_and_show(inputs):
     """
-    Generate the cover letter and update the GUI once complete.
+    Generate the cover letter and update the GUI in real time.
     """
-    try:
-        # Generate the cover letter
-        cover_letter = generate_cover_letter(inputs)
+    def update_text(chunk):
+        # Append each chunk to the output widget
+        output_text.insert("end", chunk)
+        output_text.see("end")  # Scroll to the end
 
-        # Hide the loading label and show the output
-        loading_label.pack_forget()
-        show_output(cover_letter)
+    try:
+        # Create a new window to show the output in real-time
+        output_window = Toplevel(root)
+        output_window.title("Generating Cover Letter...")
+
+        # Create a text widget for the output
+        global output_text
+        output_text = Text(output_window, wrap="word")
+        output_text.pack(expand=True, fill="both")
+
+        # Add a "Go Back" button
+        back_button = Button(output_window, text="Go Back", command=output_window.destroy)
+        back_button.pack()
+
+        # Call the generator function
+        generate_cover_letter(inputs, update_text)
+
     except Exception as e:
-        # Hide the loading label and show an error message
-        loading_label.pack_forget()
         messagebox.showerror("Error", f"Failed to generate cover letter: {e}")
 
 

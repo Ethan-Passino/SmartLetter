@@ -7,7 +7,7 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-def generate_cover_letter(inputs):
+def generate_cover_letter(inputs, update_callback):
     """
     Generate a professional cover letter using OpenAI's GPT API with streaming.
 
@@ -19,9 +19,11 @@ def generate_cover_letter(inputs):
             - 'job_description': Description of the job.
             - 'company_info': Information about the company.
             - 'projects': Applicant's projects and skills.
+            - 'resume': Text from the uploaded resume.
+            - 'tone': Desired tone for the cover letter.
 
-    Returns:
-        str: The generated cover letter.
+        update_callback (function): A callback function to update the GUI with new chunks.
+
     """
     # Merge "projects" and "resume" details for a comprehensive skillset
     combined_projects_and_skills = f"{inputs['projects']}\n\nAdditional details from resume:\n{inputs['resume']}"
@@ -37,7 +39,7 @@ def generate_cover_letter(inputs):
     try:
         # Call OpenAI's ChatCompletion API with streaming
         stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # Update to the correct model name
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system",
                  "content": "You are a professional AI assistant specializing in generating cover letters."},
@@ -46,13 +48,10 @@ def generate_cover_letter(inputs):
             stream=True,  # Enable streaming
         )
 
-        # Collect and return the response in chunks
-        cover_letter = ""
+        # Stream the response in chunks
         for chunk in stream:
             if chunk.choices[0].delta.content is not None:
-                cover_letter += chunk.choices[0].delta.content
+                update_callback(chunk.choices[0].delta.content)
 
-        return cover_letter.strip()
     except Exception as e:
-        # Handle errors and raise meaningful messages
         raise RuntimeError(f"Failed to generate cover letter: {e}")
