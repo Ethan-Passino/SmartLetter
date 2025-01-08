@@ -1,4 +1,6 @@
 from tkinter import Tk, Label, Entry, Text, Button, messagebox, Toplevel
+from tkinter.ttk import Progressbar
+import threading  # To handle API call without freezing the GUI
 from ai_generator import generate_cover_letter
 
 def show_output(cover_letter):
@@ -20,7 +22,8 @@ def show_output(cover_letter):
 
 def handle_generate():
     """
-    Generate the cover letter based on the inputs and display it.
+    Handle the generation process by validating inputs, showing a loading indicator,
+    and starting the API call in a separate thread.
     """
     inputs = {
         "name": name_entry.get(),
@@ -36,11 +39,27 @@ def handle_generate():
         messagebox.showerror("Error", "Please fill out all fields!")
         return
 
+    # Show the loading label
+    loading_label.config(text="Generating cover letter, please wait...")
+    loading_label.pack()
+
+    # Start the API call in a new thread to prevent freezing the GUI
+    threading.Thread(target=generate_and_show, args=(inputs,)).start()
+
+def generate_and_show(inputs):
+    """
+    Generate the cover letter and update the GUI once complete.
+    """
     try:
         # Generate the cover letter
         cover_letter = generate_cover_letter(inputs)
+
+        # Hide the loading label and show the output
+        loading_label.pack_forget()
         show_output(cover_letter)
     except Exception as e:
+        # Hide the loading label and show an error message
+        loading_label.pack_forget()
         messagebox.showerror("Error", f"Failed to generate cover letter: {e}")
 
 # Create the main GUI window
@@ -71,6 +90,9 @@ company_info_text.pack()
 Label(root, text="Projects and Skills:").pack()
 projects_text = Text(root, height=5, width=50)
 projects_text.pack()
+
+# Loading label (hidden initially)
+loading_label = Label(root, text="", fg="blue")
 
 # Generate button
 generate_button = Button(root, text="Generate Cover Letter", command=handle_generate)

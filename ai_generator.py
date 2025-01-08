@@ -1,14 +1,15 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from openai import OpenAI
+import os
+from dotenv import load_dotenv
 
-# Load GPT-2 model and tokenizer
-model_name = "gpt2"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name)
+# Load the API key from the .env file
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def generate_cover_letter(inputs):
     """
-    Generate a professional cover letter using the Hugging Face Transformers library.
+    Generate a professional cover letter using OpenAI's GPT API with streaming.
 
     Args:
         inputs (dict): A dictionary containing:
@@ -22,7 +23,7 @@ def generate_cover_letter(inputs):
     Returns:
         str: The generated cover letter.
     """
-    # Construct the input prompt
+    # Construct the prompt
     prompt = (
         f"Write a professional cover letter for {inputs['name']} applying to the position described as:\n"
         f"'{inputs['job_description']}'\nat {inputs['company']}. Include the following company details:\n{inputs['company_info']}.\n"
@@ -31,28 +32,24 @@ def generate_cover_letter(inputs):
     )
 
     try:
-        # Tokenize the input prompt without padding
-        inputs_encoded = tokenizer(
-            prompt,
-            return_tensors="pt",
-            truncation=True,
-            max_length=512
+        # Call OpenAI's ChatCompletion API with streaming
+        stream = client.chat.completions.create(
+            model="gpt-4o-mini",  # Update to the correct model name
+            messages=[
+                {"role": "system",
+                 "content": "You are a professional AI assistant specializing in generating cover letters."},
+                {"role": "user", "content": prompt}
+            ],
+            stream=True,  # Enable streaming
         )
 
-        # Generate text using GPT-2
-        outputs = model.generate(
-            inputs_encoded["input_ids"],
-            attention_mask=inputs_encoded["attention_mask"],
-            max_length=512,
-            num_beams=5,
-            temperature=0.7,
-            do_sample=True,
-            pad_token_id=tokenizer.eos_token_id  # Use eos_token_id for open-ended generation
-        )
+        # Collect and return the response in chunks
+        cover_letter = ""
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                cover_letter += chunk.choices[0].delta.content
 
-        # Decode the generated text
-        generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        return generated_text
+        return cover_letter.strip()
     except Exception as e:
-        # Raise an error if generation fails
-        raise RuntimeError(f"Error generating cover letter: {e}")
+        # Handle errors and raise meaningful messages
+        raise RuntimeError(f"Failed to generate cover letter: {e}")
